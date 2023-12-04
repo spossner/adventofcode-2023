@@ -7,7 +7,7 @@ Juhhhuuuu
 - setup interpreter
 
 ## 3rd party libs
-- dotenv
+- python-dotenv
 - requests
 - aoc (-> see local if you want to use local implementation)
 
