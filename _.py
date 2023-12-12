@@ -41,7 +41,9 @@ class Solution:
 
     def first_part(self):
         result = 0
-        print(self.data)
+
+        for row in self.data:
+            print(row)
 
         return result
 
