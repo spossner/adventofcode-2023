@@ -126,8 +126,6 @@ class Solution:
         print()
 
     def first_part(self):
-        result = 0
-
         field = [[c for c in row] for row in self.data]
         self.roll_north(field)
 

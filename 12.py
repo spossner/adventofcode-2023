@@ -147,7 +147,7 @@ class Solution:
             sets = get_ints(sets)
             unfolded_field = "?".join(5 * [field])
             unfolded_sets = tuple(5 * sets)
-            print(unfolded_field)
+            # print(unfolded_field)
             # arrangements = self.find_arrangements(unfolded_field, unfolded_sets)
             # result += len(arrangements)
             n = self.greedy_groups(unfolded_field, tuple(unfolded_sets))

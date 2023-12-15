@@ -44,17 +44,17 @@ class Solution:
         return [list(x) for x in zip(*matrix)]
 
     def is_complete_reflection(self, pattern, i):
-        return all(pattern[a] == pattern[b] for a, b in zip(range(i - 1, -1, -1), range(i + 2, len(pattern))))
+        return all(pattern[a] == pattern[b] for a, b in zip(range(i, -1, -1), range(i + 1, len(pattern))))
 
     def reflexion(self, pattern):
         for i in range(len(pattern) - 1):
-            if pattern[i] == pattern[i + 1] and self.is_complete_reflection(pattern, i):
+            if self.is_complete_reflection(pattern, i):
                 return i + 1
         return 0
 
     def reflexions_iter(self, pattern):
         for i in range(len(pattern) - 1):
-            if pattern[i] == pattern[i + 1] and self.is_complete_reflection(pattern, i):
+            if self.is_complete_reflection(pattern, i):
                 yield i + 1 # now we may have multiple reflexions in corrected patterns - use iterator
 
     def corrections_iter(self, pattern):
