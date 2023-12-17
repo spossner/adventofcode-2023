@@ -1,8 +1,10 @@
+import heapq
 import os
 import sys
 import math
 import operator
 import re
+import time
 from collections import *
 from functools import *
 from itertools import *
@@ -25,7 +27,7 @@ DATA = None
 AOC_SESSION = os.environ.get('AOC_SESSION')
 YEAR = 2023
 
-Node = namedtuple('Node', 'pos,directions,heat')
+Node = namedtuple('Node', 'heat,pos,directions')
 
 class Solution:
     def __init__(self, data):
@@ -41,13 +43,13 @@ class Solution:
         self.data = data
 
     def valid_directions(self, p, last_directions):
-        d1, d2, d3 = last_directions
+        last_direction = last_directions[-1]
         directions = DIRECT_ADJACENTS
-        if d3 is None:
+        if last_direction is None:
             return directions
-        directions = filter(lambda p: p.x+d3.x != 0 or p.y+d3.y!=0, DIRECT_ADJACENTS)
-        if d1 == d2 and d2 == d3:
-            directions = filter(lambda x: x != d3, directions)
+        directions = filter(lambda d: d != OPPOSITE_DIRECTION[last_direction], directions)
+        if all(map(lambda x: x == last_direction, last_directions)):
+            directions = filter(lambda x: x != last_direction, directions)
         return tuple(directions)
 
     def is_valid_tail(self, directions):
@@ -80,53 +82,25 @@ class Solution:
                     print(field[y][x], end='')
             print()
 
-    def first_part(self):
-        field = [list(map(int, list(s))) for s in self.data]
-
+    def dijkstra(self, field, start, destination, history, valid_directions, is_valid_solution):
+        start_time = time.time()
         bounds = Rect(0, 0, len(field[0]), len(field))
-        start = Point(0,0)
-        destination = Point(bounds.w-1, bounds.h-1)
-
-        paths = [Node(Point(0,0), (None, None, None), 0)]
+        paths = []
+        heapq.heappush(paths, Node(0, start, (history * (None,))))
         seen = set()
+        i = 0
         while paths:
-            # print(paths)
-
-            pos, last_directions, heat = paths.pop(0)
+            if i % 10_000 == 0:
+                print(len(paths))
+            heat, pos, last_directions =  heapq.heappop(paths)
             if pos == destination:
-                return heat
-
-            for direction in self.valid_directions(pos, last_directions):
-                new_pos = translate(pos, direction)
-                if new_pos not in bounds:
-                    continue
-
-                new_directions = (last_directions[1], last_directions[2], direction)
-                check = (new_pos, new_directions)
-                if check in seen:
-                    continue
-                seen.add(check)
-
-                bisect.insort(paths, Node(new_pos, new_directions, heat + field[new_pos.y][new_pos.x]), key=lambda x: x.heat)
-
-    def second_part(self):
-        field = [list(map(int, list(s))) for s in self.data]
-
-        bounds = Rect(0, 0, len(field[0]), len(field))
-        start = Point(0,0)
-        destination = Point(bounds.w-1, bounds.h-1)
-
-        paths = [Node(Point(0,0), (10 * (None,)), 0)]
-        seen = set()
-        while paths:
-            pos, last_directions, heat = paths.pop(0)
-            if pos == destination:
-                valid = self.is_valid_tail(last_directions)
-                if valid:
+                if is_valid_solution(last_directions):
+                    end_time = time.time()
+                    print(f"took {(end_time - start_time) * 1_000} ms")
                     return heat
-                continue # invalid solution (at least 4 consecutive steps)
+                continue # invalid solution
 
-            for direction in self.valid_directions_ultra(pos, last_directions):
+            for direction in valid_directions(pos, last_directions):
                 new_pos = translate(pos, direction)
                 if new_pos not in bounds:
                     continue
@@ -137,7 +111,21 @@ class Solution:
                     continue
                 seen.add(check)
 
-                bisect.insort(paths, Node(new_pos, new_directions, heat + field[new_pos.y][new_pos.x]), key=lambda x: x.heat)
+                heapq.heappush(paths, Node(heat + field[new_pos.y][new_pos.x], new_pos, new_directions))
+            i += 1
+
+    def first_part(self):
+        field = [list(map(int, list(s))) for s in self.data]
+
+        bounds = Rect(0, 0, len(field[0]), len(field))
+        return self.dijkstra(field, Point(0,0), Point(bounds.w - 1, bounds.h - 1), 3, self.valid_directions, lambda *_: True)
+
+
+    def second_part(self):
+        field = [list(map(int, list(s))) for s in self.data]
+
+        bounds = Rect(0, 0, len(field[0]), len(field))
+        return self.dijkstra(field, Point(0, 0), Point(bounds.w - 1, bounds.h - 1), 10, self.valid_directions_ultra, self.is_valid_tail)
 
 
 if __name__ == '__main__':
