@@ -37,7 +37,10 @@ class Solution:
                 data = [list(row) for row in data] if SPLIT_LINES else list(data)
             else:
                 data = [row.split(SPLIT_CHAR) for row in data] if SPLIT_LINES else data.split(SPLIT_CHAR)
-        self.data = data
+        self.data = self.parse_data(data)
+
+    def parse_data(self, data):
+        return data
 
     def first_part(self):
         result = 0
