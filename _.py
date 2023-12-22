@@ -21,6 +21,7 @@ PART2 = False
 STRIP = True
 SPLIT_LINES = True
 SPLIT_CHAR = None
+GET_INTS = False
 DATA = None
 AOC_SESSION = os.environ.get('AOC_SESSION')
 YEAR = 2023
@@ -37,6 +38,11 @@ class Solution:
                 data = [list(row) for row in data] if SPLIT_LINES else list(data)
             else:
                 data = [row.split(SPLIT_CHAR) for row in data] if SPLIT_LINES else data.split(SPLIT_CHAR)
+        if GET_INTS:
+            if type(data) == str:
+                data = get_ints(data)
+            else:
+                data = list(map(lambda e: get_ints(e) if type(e) == str else [get_ints(v) for v in e], data))
         self.data = self.parse_data(data)
 
     def parse_data(self, data):
