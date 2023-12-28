@@ -9,6 +9,7 @@ from functools import *
 from itertools import *
 from os.path import exists
 import bisect
+import numpy as np
 
 import requests
 from aoc import *
@@ -16,12 +17,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DEV = True
+DEV = False
 PART2 = True
 
 STRIP = True
 SPLIT_LINES = True
-SPLIT_CHAR = ''
+SPLIT_CHAR = None
 DATA = None
 AOC_SESSION = os.environ.get('AOC_SESSION')
 YEAR = 2023
@@ -54,18 +55,20 @@ class Solution:
                     print(row[x], end='')
             print()
 
-    def first_part(self):
-        result = 0
-        start = None
-        bounds = Rect(0, 0, len(self.data[0]), len(self.data))
-        for y, x in product(range(bounds.h), range(bounds.w)):
-            if self.data[y][x] == 'S':
-                start = Point(x,y)
-                break
+    def reachable(self, n=64):
+        if n > 64:
+            data = []
+            for i in range(5):
+                for line in self.data:
+                    data.append(5 * line.replace("S", "."))
+        else:
+            data = self.data
 
+        bounds = Rect(0, 0, len(data[0]), len(data))
+        start = Point(bounds.w // 2, bounds.h // 2)
         q = deque([start])
 
-        for loop in range(64):
+        for loop in range(n):
             seen = set()
             for i in range(len(q)):
                 p = q.popleft()
@@ -75,53 +78,27 @@ class Solution:
                     if adj in seen:
                         continue
                     seen.add(adj)
-                    if self.data[adj.y][adj.x] != '#':
+                    if data[adj.y][adj.x] != '#':
                         q.append(adj)
 
             # self.dump_grid(q)
         return len(q)
+
+    def first_part(self):
+        return self.reachable_fields(64)
 
     def second_part(self):
-        start = None
-        increase = []
-        bounds = Rect(0, 0, len(self.data[0]), len(self.data))
-        for y, x in product(range(bounds.h), range(bounds.w)):
-            if self.data[y][x] == 'S':
-                start = Point(x, y)
-                break
+        points = [(i, self.reachable(65 + i * 131)) for i in range(3)]
+        # [(0, 3797), (1, 34009), (2, 94353)]
+        print(points)
+        return
 
-        q = deque([start])
-        already_found = set()
+        # Fit a quadratic polynomial (degree=2) through the points
+        coefficients = np.polyfit(*zip(*points), 2)
 
-        for loop in range(100):
-            seen = set()
-            for i in range(len(q)):
-                p = q.popleft()
-                for adj in direct_adjacent_iter(p):
-                    nx = adj.x % bounds.w
-                    ny = adj.y % bounds.h
-                    if self.data[ny][nx] == '#':
-                        continue
-                    if adj in seen:
-                        continue
-                    seen.add(adj)
-                    if self.data[ny][nx] != '#':
-                        q.append(adj)
-
-            new_found = seen.difference(already_found)
-            if loop % 2 == 1:
-                increase.append((loop, len(new_found)))
-            # if loop % 2 == 1:
-            #     print("-----------")
-                # print(list(map(lambda p:(p,manhattan_distance(start, p)),new_found)))
-                # c = Counter(map(lambda x:x[-1], new_found))
-                # print(loop, len(new_found))
-            already_found.update(seen)
-            # self.dump_grid(q)
-
-        print(increase)
-        return len(q)
-
+        # Evaluate the quadratic equation at the given x value
+        return round(np.polyval(coefficients, 202300))
+        # 616583483179597 is correct
 
 if __name__ == '__main__':
     script = os.path.splitext(os.path.basename(sys.argv[0]))[0]
