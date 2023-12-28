@@ -4,10 +4,12 @@ import math
 import operator
 import re
 from collections import *
+from decimal import Decimal
 from functools import *
 from itertools import *
 from os.path import exists
 import bisect
+import numpy as np
 
 import requests
 from aoc import *
@@ -15,7 +17,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DEV = True
+DEV = False
 PART2 = True
 
 STRIP = True
@@ -27,6 +29,66 @@ AOC_SESSION = os.environ.get('AOC_SESSION')
 YEAR = 2023
 
 Vector=namedtuple("Vector","x,y,z,vx,vy,vz")
+
+
+class Hail:
+    def __init__(self, vec):
+        self.px, self.py, self.pz, self.vx, self.vy, self.vz = vec
+        self.XYslope = Decimal('inf') if self.vx == 0 else self.vy / self.vx
+        self.ax, self.ay, self.az = 0, 0, 0
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        return f'<{self.px}, {self.py}, {self.pz} @ {self.vx}, {self.vy}, {self.vz}>'
+
+    def intersectXY(self, other):
+        # returns None, if parallel / intersect in a past
+        if self.XYslope == other.XYslope:
+            return None
+        if self.XYslope == Decimal('inf'):  # self is vertical
+            intX = self.px
+            intY = other.XYslope * (intX - other.px) + other.py
+        elif other.XYslope == Decimal('inf'):  # other is vertical
+            intX = other.px
+            intY = self.XYslope * (intX - self.px) + self.py
+        else:
+            # y - y1 = m1 * ( x - x1 ) reduced to solve for x
+            intX = (self.py - other.py - self.px * self.XYslope + other.px * other.XYslope) / (other.XYslope - self.XYslope)
+            intY = self.py + self.XYslope * (intX - self.px)
+        intX, intY = intX.quantize(Decimal(".1")), intY.quantize(Decimal(".1"))
+        # intY = round(intY)
+
+        selfFuture = np.sign(intX - self.px) == np.sign(self.vx)
+        otherFuture = np.sign(intX - other.px) == np.sign(other.vx)
+        if not (selfFuture and otherFuture):
+            return None
+        return (intX, intY)
+
+    def adjust(self, ax, ay, az):
+        self.vx -= ax - self.ax
+        self.vy -= ay - self.ay
+        self.vz -= az - self.az
+        # assert type(self.vx) is Decimal
+        self.XYslope = Decimal('inf') if self.vx == 0 else self.vy / self.vx
+        self.ax, self.ay, self.az = ax, ay, az
+
+    def getT(self, p):  # if both vx and vy are 0... good luck
+        if self.vx == 0:
+            return (p[1] - self.py) / self.vy
+        return (p[0] - self.px) / self.vx
+
+    def getZ(self, other, inter):  # given an intersection point and an other Hail
+        # now we KNOW: z = pz_i + t_i*(vz_i-aZ)   [t = (inter[0]-px_i)/(vx_i)]
+        #              z = pz_j + t_j*(vz_j-aZ)
+        # (pz_i - pz_j + t_i*vz_i - t_j*vz_j)/(t_i - t_j) =  aZ
+        tS = self.getT(inter)
+        tO = other.getT(inter)
+        if tS == tO:
+            assert self.pz + tS * self.vz == other.pz + tO * other.vz
+            return None
+        return (self.pz - other.pz + tS * self.vz - tO * other.vz) / (tS - tO)
 
 class Solution:
     def __init__(self, data):
@@ -47,7 +109,8 @@ class Solution:
         self.data = self.parse_data(data)
 
     def parse_data(self, data):
-        return list(map(lambda p: Vector(*p), data))
+        return [[Decimal(n) for n in row] for row in data]
+        # return list(map(lambda p: Vector(*p), data))
 
     def first_part(self):
         result = 0
@@ -79,69 +142,67 @@ class Solution:
         return result
 
     def second_part(self):
-        # MIN = -100_000_000
-        # MAX = 100_000_000
-        # potential_x_set = None
-        # potential_y_set = None
-        # potential_z_set = None
-        # for a, b in combinations(self.data, 2):
-        #     if a.vx == b.vx and abs(a.vx) > 0:
-        #         new_x_set = set()
-        #         diff = b.x - a.x
-        #         for v in range(MIN, MAX):
-        #             if v == a.vx:
-        #                 continue
-        #             if diff % (v - a.vx) == 0:
-        #                 new_x_set.add(v)
-        #         if potential_x_set is None:
-        #             potential_x_set = new_x_set.copy()
-        #         else:
-        #             potential_x_set = potential_x_set & new_x_set
-        #     if a.vy == b.vy and abs(a.vy) > 0:
-        #         new_y_set = set()
-        #         diff = b.y - a.y
-        #         for v in range(MIN, MAX):
-        #             if v == a.vy:
-        #                 continue
-        #             if diff % (v - a.vy) == 0:
-        #                 new_y_set.add(v)
-        #         if potential_y_set != None:
-        #             potential_y_set = potential_y_set & new_y_set
-        #         else:
-        #             potential_y_set = new_y_set.copy()
-        #     if a.vz == b.vz and abs(a.vz) > 0:
-        #         new_z_set = set()
-        #         diff = b.z - a.z
-        #         for v in range(MIN, MAX):
-        #             if v == a.vz:
-        #                 continue
-        #             if diff % (v - a.vz) == 0:
-        #                 new_z_set.add(v)
-        #         if potential_z_set != None:
-        #             potential_z_set = potential_z_set & new_z_set
-        #         else:
-        #             potential_z_set = new_z_set.copy()
-        #
-        # print(potential_x_set, potential_y_set, potential_z_set)
-        # rv = Point3d(potential_x_set.pop(), potential_y_set.pop(), potential_z_set.pop())
-        #
-        # a = self.data[0]
-        # b = self.data[1]
-        # ma = (a.vy - rv.y) / (a.vx - rv.x)
-        # mb = (b.vy - rv.y) / (b.vx - rv.x)
-        # ca = a.y - (ma * a.x)
-        # cb = b.y - (mb * b.x)
-        # x = (cb - ca) / (ma - mb)
-        # y = (ma * x) + ca
-        # t = (x - a.x) / (a.vx - rv.x)
-        # z = a.z + (a.vz - rv.z) * t
-        #
-        # print(x, y, z)
-        # return x + y + z
-        # 716599937560132 too high
-        # 716599937560106 too high
-        # 289 too low
-        return 0
+        hailstones = []
+        for vec in self.data:
+            hailstones.append(Hail(vec))
+
+        N = 0
+        while True:
+            print('.', end='')
+            for X in range(N + 1):
+                Y = N - X
+                for negX in (-1, 1):
+                    for negY in (-1, 1):
+                        aX = X * negX
+                        aY = Y * negY
+                        if DEV: print(f'checking v=<{aX},{aY},?>')
+                        H1 = hailstones[0]
+                        H1.adjust(aX, aY, 0)
+                        inter = None
+                        if DEV: print(f'comparing v {H1}')
+                        for H2 in hailstones[1:]:
+                            H2.adjust(aX, aY, 0)
+                            p = H1.intersectXY(H2)
+                            if p is None:
+                                if DEV: print(f'v {H2} — NONEE')
+                                break
+                            if inter is None:
+                                if DEV: print(f'v {H2} — setting to {p}')
+                                inter = p
+                                continue
+                            if p != inter:
+                                if DEV: print(f'v {H2} — NOT SAME P {p}')
+                                break
+                            if DEV: print(f'v {H2} — continuing{p}')
+                        if p is None or p != inter:
+                            continue
+                        if DEV: print(f'FOUND COMMON INTERSECTION {p}')
+                        # we escaped intersecting everything with H1 with a single valid XY point!
+                        print(f'potential intersector found with v=<{aX},{aY},?>' \
+                              + f', p=<{inter[0]},{inter[1]},?>')
+                        aZ = None
+                        H1 = hailstones[0]
+                        # print(f'v {H1}')
+                        for H2 in hailstones[1:]:
+                            nZ = H1.getZ(H2, inter)
+                            if aZ is None:
+                                print(f'first aZ is {aZ} from {H2}')
+                                aZ = nZ
+                                continue
+                            elif nZ != aZ:
+                                print(f'invalidated! by {nZ} from {H1}')
+                                return
+                                break
+                        if aZ == nZ:
+                            H = hailstones[0]
+                            Z = H.pz + H.getT(inter) * (H.vz - aZ)
+                            print(f'found solution :) v=<{aX},{aY},{aZ}>, p=<{inter[0]},{inter[1]},{Z}>, s = {Z + inter[0] + inter[1]}')
+                            return
+
+            N += 1
+            # 716599937560132 too high
+            # 716599937560106 too high
+            # 716599937560103 correct.. finally
 
 
 if __name__ == '__main__':
