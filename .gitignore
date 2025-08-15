@@ -1,1 +1,21 @@
+# IDE
+.idea/
+
+# virtual envs
+venv/
+.venv/
+
+# Ignore actual environment variable files
 .env
+.env.*
+!.env.sample
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.build/
+dist/
+.pytest_cache/
+.mypy_cache/
+
